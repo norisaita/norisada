@@ -1,1 +1,181 @@
-ゲーム
+import pygame
+import sys
+import time
+
+pygame.init()
+
+WIDTH, HEIGHT = 800, 600
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("スクロール壁登りアクション 完全進化版")
+
+clock = pygame.time.Clock()
+
+def reset_game():
+    global player, velocity_y, on_ground, wall_stick
+    global clear, game_over, start_time, clear_time
+    
+    player = pygame.Rect(100, 500, 40, 40)
+    velocity_y = 0
+    on_ground = False
+    wall_stick = False
+    clear = False
+    game_over = False
+    start_time = time.time()
+    clear_time = 0
+
+# プレイヤー初期化
+player = pygame.Rect(100, 500, 40, 40)
+velocity_y = 0
+gravity = 0.8
+jump_power = -15
+on_ground = False
+wall_stick = False
+
+# ステージ
+platforms = [
+    pygame.Rect(0, 540, 4000, 60),
+    pygame.Rect(350, 450, 200, 20),
+    pygame.Rect(750, 400, 200, 20),
+]
+
+walls = [
+    pygame.Rect(300, 440, 50, 100),
+    pygame.Rect(700, 390, 50, 150),
+]
+
+# 👑 ゴール（30倍距離）
+goal_distance = player.width * 30
+goal = pygame.Rect(100 + goal_distance, 350, 60, 60)
+
+camera_x = 0
+
+font = pygame.font.SysFont(None, 70)
+small_font = pygame.font.SysFont(None, 40)
+
+clear = False
+game_over = False
+start_time = time.time()
+clear_time = 0
+
+running = True
+while running:
+    clock.tick(60)
+    screen.fill((25, 25, 40))
+
+    keys = pygame.key.get_pressed()
+
+    if not clear and not game_over:
+
+        # 左右移動
+        if keys[pygame.K_LEFT]:
+            player.x -= 5
+        if keys[pygame.K_RIGHT]:
+            player.x += 5
+
+        # ジャンプ
+        if keys[pygame.K_UP] and on_ground:
+            velocity_y = jump_power
+            on_ground = False
+
+        # 重力
+        if not wall_stick:
+            velocity_y += gravity
+
+        player.y += velocity_y
+
+        # 足場判定
+        on_ground = False
+        for platform in platforms:
+            if player.colliderect(platform) and velocity_y >= 0:
+                player.bottom = platform.top
+                velocity_y = 0
+                on_ground = True
+
+        # 壁処理
+        wall_stick = False
+        for wall in walls:
+            if player.colliderect(wall) and keys[pygame.K_SPACE]:
+
+                if keys[pygame.K_DOWN]:
+                    wall_stick = False
+                    break
+
+                wall_stick = True
+                velocity_y = 0
+
+                if keys[pygame.K_UP]:
+                    player.y -= 5
+
+        # 👑 ゴール判定
+        if player.colliderect(goal):
+            clear = True
+            clear_time = round(time.time() - start_time, 2)
+
+        # 💀 落下死亡判定
+        if player.y > 700:
+            game_over = True
+
+    # リスタート
+    if keys[pygame.K_r]:
+        reset_game()
+
+    # カメラ
+    camera_x = player.x - 200
+
+    # 描画
+    pygame.draw.rect(screen, (0, 200, 255),
+                     (player.x - camera_x, player.y, player.width, player.height))
+
+    for platform in platforms:
+        pygame.draw.rect(screen, (160, 160, 160),
+                         (platform.x - camera_x, platform.y,
+                          platform.width, platform.height))
+
+    for wall in walls:
+        pygame.draw.rect(screen, (200, 60, 60),
+                         (wall.x - camera_x, wall.y,
+                          wall.width, wall.height))
+
+    # 👑 王冠描画
+    crown_points = [
+        (goal.x - camera_x, goal.y + 60),
+        (goal.x - camera_x + 15, goal.y + 20),
+        (goal.x - camera_x + 30, goal.y + 60),
+        (goal.x - camera_x + 45, goal.y + 20),
+        (goal.x - camera_x + 60, goal.y + 60),
+    ]
+    pygame.draw.polygon(screen, (255, 215, 0), crown_points)
+
+    # タイマー表示
+    if not clear and not game_over:
+        current_time = round(time.time() - start_time, 2)
+        timer_text = small_font.render(f"Time: {current_time}s", True, (255,255,255))
+        screen.blit(timer_text, (20, 20))
+
+    # クリア表示
+    if clear:
+        clear_text = font.render("CLEAR!", True, (255, 255, 0))
+        screen.blit(clear_text, (WIDTH//2 - 140, 200))
+
+        time_text = small_font.render(f"Clear Time: {clear_time}s", True, (255,255,255))
+        screen.blit(time_text, (WIDTH//2 - 140, 270))
+
+        restart_text = small_font.render("Press R to Restart", True, (255,255,255))
+        screen.blit(restart_text, (WIDTH//2 - 140, 330))
+
+    # ゲームオーバー表示
+    if game_over:
+        over_text = font.render("GAME OVER", True, (255, 50, 50))
+        screen.blit(over_text, (WIDTH//2 - 170, 220))
+
+        restart_text = small_font.render("Press R to Retry", True, (255,255,255))
+        screen.blit(restart_text, (WIDTH//2 - 130, 300))
+
+    pygame.display.flip()
+
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+
+pygame.quit()
+sys.exit()
