@@ -2,10 +2,10 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>スクロール壁登りアクション</title>
+<title>高難易度スクロール壁登りアクション</title>
 <style>
 body { margin:0; overflow:hidden; background:#111; }
-canvas { display:block; margin:auto; background:#1a1a2e; }
+canvas { display:block; margin:auto; background:#141428; }
 </style>
 </head>
 <body>
@@ -46,42 +46,53 @@ function rectCollision(a,b){
            a.y+a.h > b.y;
 }
 
-/* ====== 改良ステージ ====== */
-/* ジャンプで届く高さ（約120〜150px差まで） */
+/* =======================
+   🔥 高難易度ステージ
+======================= */
 
 const platforms = [
-    {x:0,y:540,w:5000,h:60},   // 地面
+    // 地面（穴あり）
+    {x:0,y:540,w:600,h:60},
+    {x:700,y:540,w:600,h:60},
+    {x:1400,y:540,w:600,h:60},
+    {x:2100,y:540,w:600,h:60},
+    {x:2800,y:540,w:600,h:60},
+    {x:3500,y:540,w:600,h:60},
 
-    // 1エリア
+    // 上昇足場ゾーン
     {x:400,y:450,w:200,h:20},
+    {x:900,y:400,w:200,h:20},
+    {x:1600,y:350,w:200,h:20},
+    {x:2300,y:300,w:200,h:20},
+    {x:3000,y:350,w:200,h:20},
+    {x:3700,y:300,w:200,h:20},
 
-    // 2エリア
-    {x:800,y:400,w:200,h:20},
-
-    // 3エリア
-    {x:1200,y:350,w:200,h:20},
-
-    // 4エリア
-    {x:1600,y:300,w:200,h:20},
-
-    // 5エリア
-    {x:2000,y:350,w:200,h:20},
-
-    // ゴール前
-    {x:2400,y:300,w:300,h:20}
+    // 終盤高難度足場
+    {x:4300,y:260,w:150,h:20},
+    {x:4600,y:220,w:150,h:20}
 ];
 
 const walls = [
-    {x:350,y:440,w:50,h:100},
-    {x:750,y:390,w:50,h:120},
-    {x:1150,y:340,w:50,h:120},
-    {x:1550,y:290,w:50,h:120},
-    {x:1950,y:340,w:50,h:120},
-    {x:2350,y:290,w:50,h:120}
+    {x:350,y:440,w:50,h:120},
+    {x:850,y:390,w:50,h:120},
+    {x:1550,y:340,w:50,h:120},
+    {x:2250,y:290,w:50,h:120},
+    {x:2950,y:340,w:50,h:120},
+    {x:3650,y:290,w:50,h:120},
+    {x:4250,y:240,w:50,h:120},
+    {x:4550,y:200,w:50,h:120}
 ];
 
-// ゴール
-const goal = {x:2550,y:240,w:60,h:60};
+// 落とし穴ゾーン（可視化用）
+const pits = [
+    {x:600,y:540,w:100,h:60},
+    {x:1300,y:540,w:100,h:60},
+    {x:2000,y:540,w:100,h:60},
+    {x:2700,y:540,w:100,h:60},
+    {x:3400,y:540,w:100,h:60}
+];
+
+const goal = {x:5000,y:180,w:60,h:60};
 
 function update(){
 
@@ -122,6 +133,7 @@ function update(){
             clearTime = ((Date.now()-startTime)/1000).toFixed(2);
         }
 
+        // 落下死亡
         if(player.y > 700){
             gameOver = true;
         }
@@ -133,41 +145,46 @@ function update(){
 function draw(){
 
     ctx.clearRect(0,0,canvas.width,canvas.height);
-
     const cameraX = player.x - 200;
 
     // プレイヤー
-    ctx.fillStyle = "#00c8ff";
-    ctx.fillRect(player.x - cameraX, player.y, player.w, player.h);
+    ctx.fillStyle="#00c8ff";
+    ctx.fillRect(player.x-cameraX,player.y,player.w,player.h);
 
     // 足場
-    ctx.fillStyle = "#aaa";
+    ctx.fillStyle="#aaa";
     platforms.forEach(p=>{
-        ctx.fillRect(p.x - cameraX, p.y, p.w, p.h);
+        ctx.fillRect(p.x-cameraX,p.y,p.w,p.h);
     });
 
     // 壁
-    ctx.fillStyle = "#c33";
+    ctx.fillStyle="#c33";
     walls.forEach(w=>{
-        ctx.fillRect(w.x - cameraX, w.y, w.w, w.h);
+        ctx.fillRect(w.x-cameraX,w.y,w.w,w.h);
+    });
+
+    // 落とし穴（黒）
+    ctx.fillStyle="#000";
+    pits.forEach(p=>{
+        ctx.fillRect(p.x-cameraX,p.y,p.w,p.h);
     });
 
     // 王冠
-    ctx.fillStyle = "gold";
+    ctx.fillStyle="gold";
     ctx.beginPath();
-    ctx.moveTo(goal.x - cameraX, goal.y + 60);
-    ctx.lineTo(goal.x - cameraX + 15, goal.y + 20);
-    ctx.lineTo(goal.x - cameraX + 30, goal.y + 60);
-    ctx.lineTo(goal.x - cameraX + 45, goal.y + 20);
-    ctx.lineTo(goal.x - cameraX + 60, goal.y + 60);
+    ctx.moveTo(goal.x-cameraX,goal.y+60);
+    ctx.lineTo(goal.x-cameraX+15,goal.y+20);
+    ctx.lineTo(goal.x-cameraX+30,goal.y+60);
+    ctx.lineTo(goal.x-cameraX+45,goal.y+20);
+    ctx.lineTo(goal.x-cameraX+60,goal.y+60);
     ctx.closePath();
     ctx.fill();
 
-    // タイマー
+    ctx.fillStyle="white";
+    ctx.font="20px Arial";
+
     if(!clear && !gameOver){
-        ctx.fillStyle="white";
-        ctx.font="20px Arial";
-        const t = ((Date.now()-startTime)/1000).toFixed(2);
+        const t=((Date.now()-startTime)/1000).toFixed(2);
         ctx.fillText("Time: "+t+"s",20,30);
     }
 
@@ -177,7 +194,6 @@ function draw(){
         ctx.fillText("CLEAR!",300,250);
         ctx.font="30px Arial";
         ctx.fillText("Clear Time: "+clearTime+"s",300,300);
-        ctx.fillText("Press R to Restart",280,350);
     }
 
     if(gameOver){
