@@ -2,309 +2,404 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Action Game Final</title>
+<title>Platform Action</title>
 <style>
 body{margin:0;overflow:hidden;background:skyblue;}
 canvas{display:block;}
 </style>
 </head>
 <body>
+
 <canvas id="game"></canvas>
 
 <script>
+
 const canvas=document.getElementById("game");
 const ctx=canvas.getContext("2d");
+
 canvas.width=1000;
 canvas.height=500;
 
-const GRAVITY=0.6;
-const GROUND_Y=420;
-const PLAYER_SIZE=30;
-const COURSE_LENGTH=PLAYER_SIZE*150;
+const GRAVITY=0.6
+const PLAYER=30
+const GROUND=420
 
-let gameState="playing"; // playing / over / clear
-let startTime;
-let clearTime=0;
-let cameraX=0;
-let player;
-let keys={};
+let cameraX=0
+let startTime
+let clearTime=0
+let gameState="playing"
+
+let player
+let keys={}
 
 function init(){
+
 player={
 x:100,
-y:300,
-size:PLAYER_SIZE,
+y:200,
+w:PLAYER,
+h:PLAYER,
 vx:0,
 vy:0,
 speed:5,
-jumpPower:-12,
+jump:-12,
 onGround:false,
 onWall:false
-};
-cameraX=0;
-startTime=Date.now();
-gameState="playing";
 }
 
-init();
+cameraX=0
+startTime=Date.now()
+gameState="playing"
+
+}
+
+init()
 
 document.addEventListener("keydown",e=>{
-keys[e.code]=true;
 
-if(gameState!=="playing" && e.code==="KeyR"){
-init();
+keys[e.code]=true
+
+if(gameState!="playing" && e.code=="KeyR"){
+init()
 }
-});
+
+})
 
 document.addEventListener("keyup",e=>{
-keys[e.code]=false;
-});
+keys[e.code]=false
+})
 
-function rectCollision(a,b){
+function hit(a,b){
+
 return a.x<b.x+b.w &&
-a.x+a.size>b.x &&
+a.x+a.w>b.x &&
 a.y<b.y+b.h &&
-a.y+a.size>b.y;
+a.y+a.h>b.y
+
 }
 
-let walls=[
-{x:900,y:150,w:40,h:270}
-];
-
-let movingWalls=[
-{x:1400,y:200,w:40,h:200,minY:100,maxY:300,dir:1,speed:2}
-];
+let pits=[
+{x:500,w:200},
+{x:900,w:300},
+{x:1400,w:250},
+{x:1800,w:300},
+{x:2300,w:250},
+{x:2700,w:350},
+{x:3200,w:300}
+]
 
 let platforms=[
-{x:600,y:300,w:120,h:20},
-{x:1600,y:250,w:200,h:20}
-];
 
-let pits=[
-{x:500,w:120},
-{x:1100,w:150}
-];
+{x:550,y:300,w:120,h:20},
+{x:720,y:260,w:120,h:20},
 
-// 🔥 ジャンプ台
+{x:950,y:280,w:120,h:20},
+{x:1100,y:240,w:120,h:20},
+{x:1250,y:200,w:120,h:20},
+
+{x:1500,y:300,w:120,h:20},
+{x:1650,y:260,w:120,h:20},
+
+{x:1850,y:280,w:120,h:20},
+{x:2000,y:240,w:120,h:20},
+
+{x:2400,y:280,w:120,h:20},
+{x:2550,y:240,w:120,h:20},
+
+{x:3000,y:260,w:120,h:20},
+{x:3150,y:220,w:120,h:20}
+
+]
+
+let walls=[
+
+{x:1700,y:200,w:40,h:220},
+{x:2600,y:200,w:40,h:220}
+
+]
+
+let movingWalls=[
+
+{x:2100,y:300,w:120,h:20,min:200,max:350,dir:1,speed:2},
+
+{x:3400,y:300,w:120,h:20,min:150,max:350,dir:1,speed:2}
+
+]
+
 let jumpPads=[
-{x:750,y:390,w:40,h:30},
-{x:1800,y:390,w:40,h:30}
-];
 
-let goal={x:COURSE_LENGTH,y:350,size:40};
+{x:1350,y:390,w:40,h:30},
+{x:2850,y:390,w:40,h:30}
+
+]
+
+let goal={x:3800,y:350,w:40,h:40}
 
 function update(){
 
-if(gameState!=="playing") return;
+if(gameState!="playing")return
 
-// 動く壁更新
 for(let w of movingWalls){
-w.y+=w.speed*w.dir;
-if(w.y<w.minY||w.y>w.maxY){
-w.dir*=-1;
-}
+
+w.y+=w.speed*w.dir
+
+if(w.y<w.min || w.y>w.max){
+
+w.dir*=-1
+
 }
 
-let prevX=player.x;
-let prevY=player.y;
+}
 
-player.vx=0;
-if(keys["ArrowLeft"]) player.vx=-player.speed;
-if(keys["ArrowRight"]) player.vx=player.speed;
+let prevX=player.x
+let prevY=player.y
+
+player.vx=0
+
+if(keys["ArrowLeft"])player.vx=-player.speed
+if(keys["ArrowRight"])player.vx=player.speed
 
 if(keys["ArrowUp"] && player.onGround){
-player.vy=player.jumpPower;
-player.onGround=false;
+
+player.vy=player.jump
+player.onGround=false
+
 }
 
-player.vy+=GRAVITY;
-player.x+=player.vx;
-player.y+=player.vy;
+player.vy+=GRAVITY
 
-player.onGround=false;
-player.onWall=false;
+player.x+=player.vx
+player.y+=player.vy
 
-// ---- 地面＋落とし穴 ----
-let inPit=false;
-for(let pit of pits){
-if(player.x+player.size>pit.x &&
-player.x<pit.x+pit.w){
-inPit=true;
-}
-}
+player.onGround=false
+player.onWall=false
 
-if(!inPit && player.y+player.size>=GROUND_Y){
-player.y=GROUND_Y-player.size;
-player.vy=0;
-player.onGround=true;
+let inPit=false
+
+for(let p of pits){
+
+if(player.x+player.w>p.x && player.x<p.x+p.w){
+inPit=true
 }
 
-// ---- 足場 ----
+}
+
+if(!inPit && player.y+player.h>=GROUND){
+
+player.y=GROUND-player.h
+player.vy=0
+player.onGround=true
+
+}
+
 for(let p of platforms){
-if(player.x+player.size>p.x &&
+
+if(player.x+player.w>p.x &&
 player.x<p.x+p.w &&
-prevY+player.size<=p.y &&
-player.y+player.size>=p.y){
-player.y=p.y-player.size;
-player.vy=0;
-player.onGround=true;
-}
+prevY+player.h<=p.y &&
+player.y+player.h>=p.y){
+
+player.y=p.y-player.h
+player.vy=0
+player.onGround=true
+
 }
 
-// ---- 壁 ----
-let allWalls=[...walls,...movingWalls];
+}
+
+let allWalls=[...walls,...movingWalls]
 
 for(let w of allWalls){
 
-if(rectCollision(player,w)){
+if(hit(player,w)){
 
-// 上から乗る判定
-if(prevY + player.size <= w.y &&
-   player.y + player.size >= w.y){
+if(prevY+player.h<=w.y){
 
-    player.y = w.y - player.size;
-    player.vy = 0;
-    player.onGround = true;
+player.y=w.y-player.h
+player.vy=0
+player.onGround=true
 
-    // 🔥 移動壁なら一緒に動く
-    if(movingWalls.includes(w)){
-        player.y += w.speed * w.dir;
-    }
-
-    continue;
+if(movingWalls.includes(w)){
+player.y+=w.speed*w.dir
 }
 
-// 左衝突
-if(prevX + player.size <= w.x){
-    player.x = w.x - player.size;
-    player.onWall = true;
-}
-
-// 右衝突
-else if(prevX >= w.x + w.w){
-    player.x = w.x + w.w;
-    player.onWall = true;
-}
+continue
 
 }
+
+if(prevX+player.w<=w.x){
+
+player.x=w.x-player.w
+player.onWall=true
+
 }
 
-// 壁登り
+else if(prevX>=w.x+w.w){
+
+player.x=w.x+w.w
+player.onWall=true
+
+}
+
+}
+
+}
+
 if(player.onWall && keys["Space"]){
-player.vy=-4;
+
+player.vy=-4
+
 }
 
-// ---- ジャンプ台 ----
-for(let pad of jumpPads){
-if(player.x+player.size>pad.x &&
-player.x<pad.x+pad.w &&
-player.y+player.size>pad.y &&
-player.y+player.size<pad.y+pad.h+10 &&
+for(let j of jumpPads){
+
+if(player.x+player.w>j.x &&
+player.x<j.x+j.w &&
+player.y+player.h>j.y &&
+player.y+player.h<j.y+20 &&
 player.vy>=0){
-player.vy=-18; // 🔥 大ジャンプ
-}
+
+player.vy=-18
+
 }
 
-// ---- 落下死亡 ----
+}
+
 if(player.y>canvas.height){
-gameState="over";
+
+gameState="over"
+
 }
 
-// ---- ゴール ----
-if(player.x+player.size>goal.x &&
-player.x<goal.x+goal.size &&
-player.y+player.size>goal.y){
-gameState="clear";
-clearTime=((Date.now()-startTime)/1000).toFixed(2);
+if(hit(player,goal)){
+
+gameState="clear"
+
+clearTime=((Date.now()-startTime)/1000).toFixed(2)
+
 }
 
-cameraX=player.x-200;
+cameraX=player.x-200
+
 }
 
 function draw(){
 
-ctx.clearRect(0,0,canvas.width,canvas.height);
-ctx.save();
-ctx.translate(-cameraX,0);
+ctx.clearRect(0,0,canvas.width,canvas.height)
 
-// 地面
-ctx.fillStyle="green";
-for(let x=0;x<COURSE_LENGTH+500;x+=100){
-let hole=false;
-for(let pit of pits){
-if(x>=pit.x && x<pit.x+pit.w) hole=true;
+ctx.save()
+
+ctx.translate(-cameraX,0)
+
+ctx.fillStyle="green"
+
+for(let x=0;x<4000;x+=100){
+
+let hole=false
+
+for(let p of pits){
+
+if(x>=p.x && x<p.x+p.w)hole=true
+
 }
+
 if(!hole){
-ctx.fillRect(x,GROUND_Y,100,canvas.height-GROUND_Y);
-}
+
+ctx.fillRect(x,GROUND,100,200)
+
 }
 
-// 足場
-ctx.fillStyle="brown";
+}
+
+ctx.fillStyle="brown"
+
 for(let p of platforms){
-ctx.fillRect(p.x,p.y,p.w,p.h);
+
+ctx.fillRect(p.x,p.y,p.w,p.h)
+
 }
 
-// 壁
-ctx.fillStyle="gray";
+ctx.fillStyle="gray"
+
 for(let w of walls){
-ctx.fillRect(w.x,w.y,w.w,w.h);
+
+ctx.fillRect(w.x,w.y,w.w,w.h)
+
 }
 
-// 動く壁
-ctx.fillStyle="darkgray";
+ctx.fillStyle="darkgray"
+
 for(let w of movingWalls){
-ctx.fillRect(w.x,w.y,w.w,w.h);
+
+ctx.fillRect(w.x,w.y,w.w,w.h)
+
 }
 
-// ジャンプ台
-ctx.fillStyle="purple";
-for(let pad of jumpPads){
-ctx.fillRect(pad.x,pad.y,pad.w,pad.h);
+ctx.fillStyle="purple"
+
+for(let j of jumpPads){
+
+ctx.fillRect(j.x,j.y,j.w,j.h)
+
 }
 
-// 王冠
-ctx.fillStyle="gold";
-ctx.fillRect(goal.x,goal.y,goal.size,goal.size);
+ctx.fillStyle="gold"
 
-// プレイヤー
-ctx.fillStyle="red";
-ctx.fillRect(player.x,player.y,player.size,player.size);
+ctx.fillRect(goal.x,goal.y,goal.w,goal.h)
 
-ctx.restore();
+ctx.fillStyle="red"
 
-// UI
-ctx.fillStyle="black";
-ctx.font="20px Arial";
-let time=((Date.now()-startTime)/1000).toFixed(2);
-ctx.fillText("Time: "+time+"s",20,30);
+ctx.fillRect(player.x,player.y,player.w,player.h)
 
-if(gameState==="over"){
-ctx.fillStyle="red";
-ctx.font="50px Arial";
-ctx.fillText("GAME OVER",350,220);
-ctx.font="20px Arial";
-ctx.fillText("Press R to Retry",420,260);
+ctx.restore()
+
+ctx.fillStyle="black"
+
+ctx.font="20px Arial"
+
+let t=((Date.now()-startTime)/1000).toFixed(2)
+
+ctx.fillText("Time: "+t,20,30)
+
+if(gameState=="over"){
+
+ctx.font="50px Arial"
+ctx.fillStyle="red"
+ctx.fillText("GAME OVER",350,200)
+
+ctx.font="20px Arial"
+ctx.fillText("Press R to Retry",420,240)
+
 }
 
-if(gameState==="clear"){
-ctx.fillStyle="blue";
-ctx.font="50px Arial";
-ctx.fillText("CLEAR!",380,200);
-ctx.font="30px Arial";
-ctx.fillText("Clear Time: "+clearTime+"s",380,240);
-ctx.font="20px Arial";
-ctx.fillText("Press R to Retry",400,280);
+if(gameState=="clear"){
+
+ctx.font="50px Arial"
+ctx.fillStyle="blue"
+ctx.fillText("CLEAR!",380,200)
+
+ctx.font="30px Arial"
+ctx.fillText("Time: "+clearTime+"s",400,240)
+
+ctx.font="20px Arial"
+ctx.fillText("Press R to Retry",400,280)
+
 }
+
 }
 
 function loop(){
-update();
-draw();
-requestAnimationFrame(loop);
+
+update()
+draw()
+
+requestAnimationFrame(loop)
+
 }
 
-loop();
+loop()
+
 </script>
+
 </body>
 </html>
