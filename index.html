@@ -155,18 +155,30 @@ player.onGround=true;
 let allWalls=[...walls,...movingWalls];
 
 for(let w of allWalls){
-if(rectCollision(player,w)){
-if(prevX+player.size<=w.x){
-player.x=w.x-player.size;
-player.onWall=true;
-}
-else if(prevX>=w.x+w.w){
-player.x=w.x+w.w;
-player.onWall=true;
-}
-}
-}
 
+  if(rectCollision(player,w)){
+
+    // 🔥 上から乗る判定
+    if(prevY + player.size <= w.y &&
+       player.y + player.size >= w.y){
+        player.y = w.y - player.size;
+        player.vy = 0;
+        player.onGround = true;
+        continue;
+    }
+
+    // 左から衝突
+    if(prevX + player.size <= w.x){
+        player.x = w.x - player.size;
+        player.onWall = true;
+    }
+    // 右から衝突
+    else if(prevX >= w.x + w.w){
+        player.x = w.x + w.w;
+        player.onWall = true;
+    }
+  }
+}
 // 壁登り
 if(player.onWall && keys["Space"]){
 player.vy=-4;
