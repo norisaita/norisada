@@ -4,16 +4,8 @@
 <meta charset="UTF-8">
 <title>スクロール壁登りアクション</title>
 <style>
-body {
-    margin: 0;
-    overflow: hidden;
-    background: #111;
-}
-canvas {
-    display: block;
-    margin: auto;
-    background: #1a1a2e;
-}
+body { margin:0; overflow:hidden; background:#111; }
+canvas { display:block; margin:auto; background:#1a1a2e; }
 </style>
 </head>
 <body>
@@ -31,21 +23,6 @@ let player, velocityY, onGround, wallStick;
 let clear, gameOver;
 let startTime, clearTime;
 
-const worldWidth = 4000;
-
-const platforms = [
-    {x:0,y:540,w:4000,h:60},
-    {x:350,y:450,w:200,h:20},
-    {x:750,y:400,w:200,h:20}
-];
-
-const walls = [
-    {x:300,y:440,w:50,h:100},
-    {x:700,y:390,w:50,h:150}
-];
-
-let goal;
-
 function resetGame(){
     player = {x:100,y:500,w:40,h:40};
     velocityY = 0;
@@ -55,7 +32,6 @@ function resetGame(){
     gameOver = false;
     startTime = Date.now();
     clearTime = 0;
-    goal = {x:100 + player.w * 30, y:350, w:60, h:60};
 }
 resetGame();
 
@@ -70,6 +46,43 @@ function rectCollision(a,b){
            a.y+a.h > b.y;
 }
 
+/* ====== 改良ステージ ====== */
+/* ジャンプで届く高さ（約120〜150px差まで） */
+
+const platforms = [
+    {x:0,y:540,w:5000,h:60},   // 地面
+
+    // 1エリア
+    {x:400,y:450,w:200,h:20},
+
+    // 2エリア
+    {x:800,y:400,w:200,h:20},
+
+    // 3エリア
+    {x:1200,y:350,w:200,h:20},
+
+    // 4エリア
+    {x:1600,y:300,w:200,h:20},
+
+    // 5エリア
+    {x:2000,y:350,w:200,h:20},
+
+    // ゴール前
+    {x:2400,y:300,w:300,h:20}
+];
+
+const walls = [
+    {x:350,y:440,w:50,h:100},
+    {x:750,y:390,w:50,h:120},
+    {x:1150,y:340,w:50,h:120},
+    {x:1550,y:290,w:50,h:120},
+    {x:1950,y:340,w:50,h:120},
+    {x:2350,y:290,w:50,h:120}
+];
+
+// ゴール
+const goal = {x:2550,y:240,w:60,h:60};
+
 function update(){
 
     if(!clear && !gameOver){
@@ -83,7 +96,6 @@ function update(){
         }
 
         if(!wallStick) velocityY += gravity;
-
         player.y += velocityY;
 
         onGround = false;
@@ -107,7 +119,7 @@ function update(){
 
         if(rectCollision(player,goal)){
             clear = true;
-            clearTime = ((Date.now() - startTime)/1000).toFixed(2);
+            clearTime = ((Date.now()-startTime)/1000).toFixed(2);
         }
 
         if(player.y > 700){
@@ -140,7 +152,7 @@ function draw(){
         ctx.fillRect(w.x - cameraX, w.y, w.w, w.h);
     });
 
-    // 王冠ゴール
+    // 王冠
     ctx.fillStyle = "gold";
     ctx.beginPath();
     ctx.moveTo(goal.x - cameraX, goal.y + 60);
@@ -185,6 +197,5 @@ function gameLoop(){
 
 gameLoop();
 </script>
-
 </body>
 </html>
