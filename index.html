@@ -2,398 +2,226 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Action Game</title>
-
+<title>Action Game - Wall Climb Edition</title>
 <style>
-body{
-margin:0;
-overflow:hidden;
-background:#222;
-}
-
-canvas{
-background:#87CEEB;
-display:block;
-}
-
-#ui{
-position:fixed;
-top:10px;
-left:10px;
-color:white;
-font-size:20px;
-}
-
-#message{
-position:fixed;
-top:50%;
-left:50%;
-transform:translate(-50%,-50%);
-color:white;
-font-size:40px;
-text-align:center;
-}
-
-button{
-font-size:20px;
-padding:10px 20px;
-margin-top:10px;
-}
+    body { margin: 0; overflow: hidden; background: #222; font-family: sans-serif; }
+    canvas { background: #87CEEB; display: block; }
+    #ui { position: fixed; top: 10px; left: 10px; color: white; font-size: 20px; text-shadow: 1px 1px 2px black; }
+    #message { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 40px; text-align: center; background: rgba(0,0,0,0.8); padding: 30px; border-radius: 10px; display: none; z-index: 10; }
+    button { font-size: 20px; padding: 10px 20px; margin-top: 15px; cursor: pointer; }
 </style>
 </head>
-
 <body>
 
 <canvas id="game"></canvas>
-
-<div id="ui">
-Time: <span id="time">0.0</span>
-</div>
-
+<div id="ui">Time: <span id="time">0.0</span></div>
 <div id="message"></div>
 
 <script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
 
-const canvas = document.getElementById("game")
-const ctx = canvas.getContext("2d")
+function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
 
-canvas.width = window.innerWidth
-canvas.height = window.innerHeight
+const gravity = 0.6;
+let keys = {};
+let startTime = Date.now();
+let gameOver = false;
+let clear = false;
+let cameraX = 0;
 
-let gravity = 0.6
-let keys={}
-let startTime=Date.now()
+document.addEventListener("keydown", e => keys[e.key] = true);
+document.addEventListener("keyup", e => keys[e.key] = false);
 
-let gameOver=false
-let clear=false
+class Player {
+    constructor() {
+        this.x = 100;
+        this.y = 300;
+        this.w = 40;
+        this.h = 40;
+        this.vx = 0;
+        this.vy = 0;
+        this.onGround = false;
+        this.isClinging = false; // 壁に張り付いているか
+    }
 
-document.addEventListener("keydown",e=>keys[e.key]=true)
-document.addEventListener("keyup",e=>keys[e.key]=false)
+    update() {
+        if (gameOver || clear) return;
 
-class Player{
+        // 左右移動
+        if (keys["ArrowLeft"]) this.vx = -5;
+        else if (keys["ArrowRight"]) this.vx = 5;
+        else this.vx = 0;
 
-constructor(){
-this.x=100
-this.y=300
-this.w=40
-this.h=40
-this.vx=0
-this.vy=0
-this.onGround=false
-this.wall=false
+        // ジャンプ（上キー）
+        if (keys["ArrowUp"] && this.onGround) {
+            this.vy = -12;
+            this.onGround = false;
+        }
+
+        // 重力計算（スペースキーで張り付いている間は重力を無視して登れる）
+        let touchingWall = false;
+
+        // 当たり判定
+        this.onGround = false;
+        this.x += this.vx;
+        
+        platforms.forEach(p => {
+            if (this.rectIntersect(this, p)) {
+                if (this.vx > 0) this.x = p.x - this.w;
+                if (this.vx < 0) this.x = p.x + p.w;
+                touchingWall = true;
+            }
+        });
+
+        this.y += this.vy;
+        platforms.forEach(p => {
+            if (this.rectIntersect(this, p)) {
+                if (this.vy > 0) {
+                    this.y = p.y - this.h;
+                    this.vy = 0;
+                    this.onGround = true;
+                } else if (this.vy < 0) {
+                    this.y = p.y + p.h;
+                    this.vy = 0;
+                }
+            }
+        });
+
+        // 壁登りシステム：壁に接していてスペースキーを押している間
+        if (touchingWall && keys[" "]) {
+            this.vy = 0; 
+            if (keys["ArrowUp"]) this.vy = -5; // 上で登る
+            else if (keys["ArrowDown"]) this.vy = 5; // 下で降りる
+        } else {
+            this.vy += gravity;
+        }
+
+        // ギミック判定
+        springs.forEach(s => { if (this.rectIntersect(this, s)) this.vy = -18; });
+        spikes.forEach(s => { if (this.rectIntersect(this, s)) die(); });
+        if (this.rectIntersect(this, goal)) win();
+        if (this.y > canvas.height + 200) die();
+    }
+
+    rectIntersect(r1, r2) {
+        return r1.x < r2.x + r2.w && r1.x + r1.w > r2.x && r1.y < r2.y + r2.h && r1.y + r1.h > r2.y;
+    }
+
+    draw() {
+        ctx.fillStyle = keys[" "] && !this.onGround ? "#FFA500" : "#FF4444"; // 張り付き中はオレンジに
+        ctx.fillRect(this.x - cameraX, this.y, this.w, this.h);
+    }
 }
 
-update(){
-
-if(gameOver || clear) return
-
-if(keys["ArrowLeft"]) this.vx=-5
-else if(keys["ArrowRight"]) this.vx=5
-else this.vx=0
-
-if(keys[" "] && this.onGround){
-this.vy=-12
+// --- オブジェクトクラス ---
+class Platform {
+    constructor(x, y, w, h) { Object.assign(this, {x, y, w, h}); }
+    draw() {
+        ctx.fillStyle = "#5D4037";
+        ctx.fillRect(this.x - cameraX, this.y, this.w, this.h);
+    }
 }
 
-if(this.wall && keys["ArrowUp"]){
-this.vy=-6
+class Spike {
+    constructor(x, y) { Object.assign(this, {x, y, w: 40, h: 20}); }
+    draw() {
+        ctx.fillStyle = "#FF0000";
+        ctx.beginPath();
+        ctx.moveTo(this.x - cameraX, this.y + this.h);
+        ctx.lineTo(this.x + this.w/2 - cameraX, this.y);
+        ctx.lineTo(this.x + this.w - cameraX, this.y + this.h);
+        ctx.fill();
+    }
 }
 
-if(this.wall && keys["ArrowDown"]){
-this.wall=false
+class Spring {
+    constructor(x, y) { Object.assign(this, {x, y, w: 40, h: 15}); }
+    draw() {
+        ctx.fillStyle = "#FFD700";
+        ctx.fillRect(this.x - cameraX, this.y, this.w, this.h);
+    }
 }
 
-this.vy+=gravity
-
-this.x+=this.vx
-this.y+=this.vy
-
-this.onGround=false
-this.wall=false
-
-platforms.forEach(p=>{
-
-if(this.x < p.x+p.w &&
-this.x+this.w > p.x &&
-this.y < p.y+p.h &&
-this.y+this.h > p.y){
-
-if(this.vy>0 && this.y+this.h-this.vy<=p.y){
-this.y=p.y-this.h
-this.vy=0
-this.onGround=true
+class Goal {
+    constructor(x, y) { Object.assign(this, {x, y, w: 60, h: 60}); }
+    draw() {
+        ctx.fillStyle = "#00FF00";
+        ctx.fillRect(this.x - cameraX, this.y, this.w, this.h);
+    }
 }
 
-else if(this.vy<0 && this.y>=p.y+p.h){
-this.y=p.y+p.h
-this.vy=0
+// --- ステージ構築 ---
+let player = new Player();
+let platforms = [];
+let spikes = [];
+let springs = [];
+let goal = new Goal(2500, 300);
+
+function createStage() {
+    // 1. 安全な初期地点
+    platforms.push(new Platform(0, 500, 600, 100));
+
+    // 2. 固定の地形配置
+    platforms.push(new Platform(700, 400, 100, 200)); // 壁登り用の高い壁
+    platforms.push(new Platform(900, 300, 100, 300));
+    platforms.push(new Platform(1200, 450, 400, 50)); 
+    platforms.push(new Platform(1700, 200, 50, 400)); // 細い高い壁
+
+    // 3. トゲ (触れると死ぬ)
+    spikes.push(new Spike(1250, 430));
+    spikes.push(new Spike(1350, 430));
+    spikes.push(new Spike(1450, 430));
+
+    // 4. ジャンプ台
+    springs.push(new Spring(500, 485));
+    springs.push(new Spring(1100, 550));
+
+    // ゴール
+    goal = new Goal(2000, 400);
 }
 
-else{
+createStage();
 
-if(this.x+this.w-this.vx<=p.x){
-this.x=p.x-this.w
-this.wall=true
+function die() {
+    if(gameOver || clear) return;
+    gameOver = true;
+    document.getElementById("message").innerHTML = "GAME OVER<br><button onclick='location.reload()'>Retry</button>";
+    document.getElementById("message").style.display = "block";
 }
 
-else if(this.x-this.vx>=p.x+p.w){
-this.x=p.x+p.w
-this.wall=true
+function win() {
+    if(clear || gameOver) return;
+    clear = true;
+    let time = (Date.now() - startTime) / 1000;
+    document.getElementById("message").innerHTML = "CLEAR!<br>Time: " + time.toFixed(2) + "s<br><button onclick='location.reload()'>Retry</button>";
+    document.getElementById("message").style.display = "block";
 }
 
+function loop() {
+    cameraX = player.x - 200;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    player.update();
+
+    platforms.forEach(p => p.draw());
+    spikes.forEach(s => s.draw());
+    springs.forEach(s => s.draw());
+    goal.draw();
+    player.draw();
+
+    if (!gameOver && !clear) {
+        let time = (Date.now() - startTime) / 1000;
+        document.getElementById("time").textContent = time.toFixed(1);
+    }
+    requestAnimationFrame(loop);
 }
-
-}
-
-})
-
-springs.forEach(s=>{
-
-if(this.x < s.x+s.w &&
-this.x+this.w > s.x &&
-this.y < s.y+s.h &&
-this.y+this.h > s.y){
-
-this.vy=-18
-
-}
-
-})
-
-movingWalls.forEach(m=>{
-
-m.update()
-
-if(this.x < m.x+m.w &&
-this.x+this.w > m.x &&
-this.y < m.y+m.h &&
-this.y+this.h > m.y){
-
-if(this.vy>0){
-this.y=m.y-this.h
-this.vy=0
-this.onGround=true
-}
-
-}
-
-})
-
-if(this.y>canvas.height+500){
-die()
-}
-
-if(this.x>goal.x && this.x<goal.x+goal.w &&
-this.y>goal.y && this.y<goal.y+goal.h){
-win()
-}
-
-}
-
-draw(){
-
-ctx.fillStyle="red"
-ctx.fillRect(this.x-cameraX,this.y,this.w,this.h)
-
-}
-
-}
-
-class Platform{
-constructor(x,y,w,h){
-this.x=x
-this.y=y
-this.w=w
-this.h=h
-}
-
-draw(){
-ctx.fillStyle="#654321"
-ctx.fillRect(this.x-cameraX,this.y,this.w,this.h)
-}
-}
-
-class Spring{
-constructor(x,y){
-this.x=x
-this.y=y
-this.w=30
-this.h=20
-}
-
-draw(){
-ctx.fillStyle="yellow"
-ctx.fillRect(this.x-cameraX,this.y,this.w,this.h)
-}
-}
-
-class MovingWall{
-constructor(x,y){
-this.x=x
-this.y=y
-this.w=60
-this.h=200
-this.dir=1
-}
-
-update(){
-
-this.y+=this.dir*2
-
-if(this.y<100) this.dir=1
-if(this.y>400) this.dir=-1
-
-}
-
-draw(){
-ctx.fillStyle="gray"
-ctx.fillRect(this.x-cameraX,this.y,this.w,this.h)
-}
-}
-
-class Goal{
-
-constructor(x,y){
-this.x=x
-this.y=y
-this.w=60
-this.h=60
-}
-
-draw(){
-
-ctx.fillStyle="gold"
-
-ctx.beginPath()
-ctx.moveTo(this.x-cameraX,this.y+60)
-ctx.lineTo(this.x+10-cameraX,this.y)
-ctx.lineTo(this.x+30-cameraX,this.y+30)
-ctx.lineTo(this.x+50-cameraX,this.y)
-ctx.lineTo(this.x+60-cameraX,this.y+60)
-ctx.closePath()
-ctx.fill()
-
-}
-
-}
-
-let player=new Player()
-
-let platforms=[]
-let springs=[]
-let movingWalls=[]
-
-let cameraX=0
-
-function generateStage(){
-
-let groundY=450
-
-// 地面
-for(let i=0;i<200;i++){
-
-// 落とし穴
-if(i%3==0) continue
-
-platforms.push(new Platform(i*200,groundY,200,50))
-
-}
-
-// 足場
-let x=200
-let y=350
-
-platforms.push(new Platform(200,350,120,20))
-
-for(let i=0;i<40;i++){
-
-x+=250
-
-y+=Math.random()*120-60
-
-if(y<200) y=200
-if(y>400) y=400
-
-platforms.push(new Platform(x,y,120,20))
-
-let r=Math.random()
-
-if(r<0.3){
-springs.push(new Spring(x+40,y-20))
-}
-
-if(r>0.7){
-movingWalls.push(new MovingWall(x+60,y-200))
-}
-
-}
-
-goal=new Goal(x+300,y-100)
-
-}
-
-generateStage()
-
-function die(){
-
-gameOver=true
-
-document.getElementById("message").innerHTML=
-"GAME OVER<br><button onclick='retry()'>Retry</button>"
-
-}
-
-function win(){
-
-clear=true
-
-let time=(Date.now()-startTime)/1000
-
-document.getElementById("message").innerHTML=
-"CLEAR!<br>Time:"+time.toFixed(2)+"s<br><button onclick='retry()'>Retry</button>"
-
-}
-
-function retry(){
-location.reload()
-}
-
-function update(){
-
-cameraX=player.x-200
-
-player.update()
-
-}
-
-function draw(){
-
-ctx.clearRect(0,0,canvas.width,canvas.height)
-
-platforms.forEach(p=>p.draw())
-springs.forEach(s=>s.draw())
-movingWalls.forEach(m=>m.draw())
-
-goal.draw()
-
-player.draw()
-
-let time=(Date.now()-startTime)/1000
-document.getElementById("time").textContent=time.toFixed(1)
-
-}
-
-function loop(){
-
-update()
-draw()
-
-requestAnimationFrame(loop)
-
-}
-
-loop()
-
+loop();
 </script>
 </body>
 </html>
