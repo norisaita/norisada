@@ -5,12 +5,10 @@
 <title>Action Game</title>
 
 <style>
-
 body{
 margin:0;
 overflow:hidden;
 background:#222;
-font-family:sans-serif;
 }
 
 canvas{
@@ -41,7 +39,6 @@ font-size:20px;
 padding:10px 20px;
 margin-top:10px;
 }
-
 </style>
 </head>
 
@@ -64,13 +61,11 @@ canvas.width = window.innerWidth
 canvas.height = window.innerHeight
 
 let gravity = 0.6
+let keys={}
+let startTime=Date.now()
 
-let keys = {}
-
-let startTime = Date.now()
-
-let gameOver = false
-let clear = false
+let gameOver=false
+let clear=false
 
 document.addEventListener("keydown",e=>keys[e.key]=true)
 document.addEventListener("keyup",e=>keys[e.key]=false)
@@ -123,32 +118,27 @@ this.x+this.w > p.x &&
 this.y < p.y+p.h &&
 this.y+this.h > p.y){
 
-// 上
 if(this.vy>0 && this.y+this.h-this.vy<=p.y){
 this.y=p.y-this.h
 this.vy=0
 this.onGround=true
 }
 
-// 下
 else if(this.vy<0 && this.y>=p.y+p.h){
 this.y=p.y+p.h
 this.vy=0
 }
 
-// 左右（壁張り付き）
 else{
 
 if(this.x+this.w-this.vx<=p.x){
 this.x=p.x-this.w
 this.wall=true
-this.vy=0
 }
 
 else if(this.x-this.vx>=p.x+p.w){
 this.x=p.x+p.w
 this.wall=true
-this.vy=0
 }
 
 }
@@ -193,13 +183,9 @@ if(this.y>canvas.height+500){
 die()
 }
 
-if(this.x > goal.x &&
-this.x < goal.x+goal.w &&
-this.y > goal.y &&
-this.y < goal.y+goal.h){
-
+if(this.x>goal.x && this.x<goal.x+goal.w &&
+this.y>goal.y && this.y<goal.y+goal.h){
 win()
-
 }
 
 }
@@ -214,7 +200,6 @@ ctx.fillRect(this.x-cameraX,this.y,this.w,this.h)
 }
 
 class Platform{
-
 constructor(x,y,w,h){
 this.x=x
 this.y=y
@@ -226,11 +211,9 @@ draw(){
 ctx.fillStyle="#654321"
 ctx.fillRect(this.x-cameraX,this.y,this.w,this.h)
 }
-
 }
 
 class Spring{
-
 constructor(x,y){
 this.x=x
 this.y=y
@@ -242,11 +225,9 @@ draw(){
 ctx.fillStyle="yellow"
 ctx.fillRect(this.x-cameraX,this.y,this.w,this.h)
 }
-
 }
 
 class MovingWall{
-
 constructor(x,y){
 this.x=x
 this.y=y
@@ -265,12 +246,9 @@ if(this.y>400) this.dir=-1
 }
 
 draw(){
-
 ctx.fillStyle="gray"
 ctx.fillRect(this.x-cameraX,this.y,this.w,this.h)
-
 }
-
 }
 
 class Goal{
@@ -299,7 +277,7 @@ ctx.fill()
 
 }
 
-let player = new Player()
+let player=new Player()
 
 let platforms=[]
 let springs=[]
@@ -309,47 +287,48 @@ let cameraX=0
 
 function generateStage(){
 
+let groundY=450
+
+// 地面
+for(let i=0;i<200;i++){
+
+// 落とし穴
+if(i%3==0) continue
+
+platforms.push(new Platform(i*200,groundY,200,50))
+
+}
+
+// 足場
 let x=200
 let y=350
 
-// 最初の足場
 platforms.push(new Platform(200,350,120,20))
 
-for(let i=0;i<60;i++){
+for(let i=0;i<40;i++){
 
-x+=200
+x+=250
 
-let heightChange = Math.random()*150-75
-y+=heightChange
+y+=Math.random()*120-60
 
 if(y<200) y=200
-if(y>450) y=450
+if(y>400) y=400
 
 platforms.push(new Platform(x,y,120,20))
-
-// 足場2つにつき落とし穴
-if(i%2==0){
-
-// 落とし穴（地面削除）
-}
 
 let r=Math.random()
 
 if(r<0.3){
-
 springs.push(new Spring(x+40,y-20))
-
 }
 
 if(r>0.7){
-
 movingWalls.push(new MovingWall(x+60,y-200))
-
 }
 
 }
 
-goal=new Goal(x+200,y-100)
+goal=new Goal(x+300,y-100)
 
 }
 
@@ -376,9 +355,7 @@ document.getElementById("message").innerHTML=
 }
 
 function retry(){
-
 location.reload()
-
 }
 
 function update(){
